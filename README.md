@@ -12,8 +12,8 @@ Windows Alt-Tab switcher and built directly for the Omarchy Quattro shell.
 - Cycles while Alt is held and activates on Alt release.
 - Supports arrow keys, `Shift+Tab`, Enter, Space, Escape, and the mouse.
 - Uses Omarchy's current popup and menu colors automatically.
-- Resolves icons through the desktop entry database, with optional custom or
-  directly fetched web-app favicons.
+- Resolves icons through the desktop entry database and bundled local web-app
+  icons without making network requests.
 
 ## Requirements
 
@@ -66,41 +66,15 @@ You can also summon it directly:
 omarchy-shell shell summon io.github.leandro-3rne.window-switcher '{}'
 ```
 
-## Optional web-app favicons
+## Web-app icons and network safety
 
 Chromium web apps do not always expose a desktop icon that matches their
-window class. The plugin therefore includes two opt-in hooks near the top of
-`WindowSwitcher.qml`. Remote loading stays disabled by default.
+window class. Known apps use bundled local icons or installed icon-theme
+entries; unknown apps fall back to their desktop entry icon.
 
-For reliable local icons, place image files somewhere under your home
-directory and extend `customWebIcons`:
-
-```qml
-property var customWebIcons: ({
-  "music.apple.com": Quickshell.env("HOME") + "/.local/share/icons/apple-music.png",
-  "mail.example.com": Quickshell.env("HOME") + "/.local/share/icons/example-mail.png"
-})
-```
-
-The key is the hostname encoded in Chromium's app class. Inspect it with:
-
-```sh
-hyprctl clients -j | jq -r '.[] | [.class, .title] | @tsv'
-```
-
-Alternatively, set this property to `true`:
-
-```qml
-property bool allowRemoteFavicons: true
-```
-
-That makes the plugin request `https://HOST/favicon.ico` directly from each
-web app's own host. It does not use a third-party favicon service, but the
-request still reveals your IP address to that host and some sites do not serve
-an icon at that path.
-
-These are source-level customizations. A future `omarchy plugin update` may
-replace them, so keep your small mapping somewhere you can reapply it.
+The switcher never derives a URL from a client's app ID and never performs
+network requests. This keeps forged Wayland client metadata from turning the
+long-running shell into an HTTP client.
 
 ## Remove
 

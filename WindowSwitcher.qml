@@ -14,14 +14,9 @@ Item {
   property bool opened: false
   property int selectedIndex: 0
   readonly property string pluginId: "io.github.leandro-3rne.window-switcher"
-
-  // Optional web-app icons. Keep remote loading off by default. Local values
-  // may be absolute paths or file:/qrc:/image-provider URLs.
-  property bool allowRemoteFavicons: false
-  property var customWebIcons: ({
-    // "music.apple.com": Quickshell.env("HOME") + "/.local/share/icons/apple-music.png",
-    // "mail.example.com": Quickshell.env("HOME") + "/.local/share/icons/example-mail.png"
-  })
+  readonly property string appleMusicPluginId: "io.github.leandro-3rne.apple-music"
+  readonly property string iconDirectory: Quickshell.env("HOME") + "/.config/omarchy/plugins/" + pluginId + "/icons/"
+  readonly property string appIconDirectory: Quickshell.env("HOME") + "/.local/share/icons/hicolor/scalable/apps/"
 
   // Match Omarchy's weather/audio/etc. popout surfaces. Selection colors
   // still come from the menu tokens used by keyboard-driven lists.
@@ -50,30 +45,74 @@ Item {
     return "?"
   }
 
+  function isAppleMusicWindow(win) {
+    var id = String(win && win.appId || "").toLowerCase()
+    return id.indexOf("music.apple.com") !== -1
+  }
+
+  function isHiddenWorkspace(workspace) {
+    if (!workspace) return false
+    // Hyprland assigns non-positive ids to special workspaces. Keep this
+    // independent of the display name so renamed special workspaces still
+    // follow the same activation path.
+    var id = Number(workspace.id)
+    var name = String(workspace.name || "")
+    return (isFinite(id) && id <= 0) || name.indexOf("special:") === 0
+  }
+
+  function webIconForApp(appId) {
+    var id = String(appId || "").toLowerCase()
+    // Chromium app classes include the host before "__" and may encode the
+    // URL path afterwards (for example onedrive.live.com__my-Default).
+    var match = id.match(/^chrome-(.+)__.*-default$/)
+    if (!match) return ""
+
+    var host = match[1]
+    var localIcons = {
+      "discord.com": "discord.png",
+      "mail.proton.me": "proton-mail",
+      "calendar.proton.me": "proton-calendar",
+      "drive.proton.me": "proton-drive",
+      "pass.proton.me": "proton-pass",
+      "onedrive.live.com": "onedrive.png",
+      "www.icloud.com": "icloud.png",
+      "music.apple.com": "apple-music.png",
+      "www.netflix.com": "netflix.png",
+      "github.com": "github.png",
+      "www.linkedin.com": "linkedin.png"
+    }
+    if (localIcons[host]) {
+      var icon = localIcons[host]
+      return icon.indexOf("proton-") === 0
+        ? root.appIconDirectory + icon + ".svg"
+        : root.iconDirectory + icon
+    }
+
+    // Never turn a client-controlled appId into a network request. Unknown
+    // web apps fall back to their desktop entry icon below.
+    return ""
+  }
+
   function desktopIconForApp(appId) {
+    var id = String(appId || "").toLowerCase()
+    // Native Proton clients expose window app IDs that do not always match
+    // their desktop-file IDs, so DesktopEntries.heuristicLookup() can miss
+    // them. Keep explicit aliases beside the Chromium-host icon mapping.
+    var localIcons = {
+      "proton mail": "proton-mail",
+      "proton-mail": "proton-mail",
+      "proton pass": "proton-pass",
+      "proton-pass": "proton-pass",
+      "proton vpn": "proton-vpn-logo",
+      "proton-vpn": "proton-vpn-logo",
+      "protonvpn-app": "proton-vpn-logo"
+    }
+    if (localIcons[id]) return root.appIconDirectory + localIcons[id] + ".svg"
+
     var entry = DesktopEntries.heuristicLookup(appId)
     return entry
       ? Quickshell.iconPath(entry.icon)
       : Quickshell.iconPath("application-x-executable")
-  }
-
-  function webHostForApp(appId) {
-    // Chromium web-app classes commonly look like
-    // chrome-example.com__some_path-Default.
-    var match = String(appId || "").toLowerCase().match(/^chrome-(.+?)__.*-default$/)
-    return match ? match[1] : ""
-  }
-
-  function webIconForApp(appId) {
-    var host = webHostForApp(appId)
-    if (!host) return ""
-
-    var custom = String(customWebIcons[host] || "")
-    if (custom) return custom.charAt(0) === "/" ? "file://" + custom : custom
-
-    // Opt-in only: fetch directly from the web app's own host, not from a
-    // third-party favicon service. Some sites do not expose /favicon.ico.
-    return allowRemoteFavicons ? "https://" + host + "/favicon.ico" : ""
   }
 
   function appNameForWindow(appId, title) {
@@ -123,6 +162,7 @@ Item {
   function displayTitleForWindow(appId, title) {
     var id = String(appId || "").toLowerCase()
     var value = String(title || "")
+    if (id.indexOf("music.apple.com") !== -1) return "Apple Music"
     if (id === "chatgpt") {
       var cleaned = value.replace(/\s+[—–-]\s+ChatGPT$/i, "")
       return cleaned && cleaned.toLowerCase() !== "chatgpt" ? cleaned : "ChatGPT"
@@ -140,8 +180,12 @@ Item {
       var win = hyprWindow.wayland
       var workspace = hyprWindow.workspace
       var workspaceId = workspace ? Number(workspace.id) : 0
+      var appleMusic = root.isAppleMusicWindow(win)
+      var hiddenWorkspace = root.isHiddenWorkspace(workspace)
       rows.push({
         windowObject: win,
+        appleMusic: appleMusic,
+        hiddenWorkspace: hiddenWorkspace,
         title: root.displayTitleForWindow(win.appId, hyprWindow.title || win.title || win.appId),
         appId: String(win.appId || ""),
         appName: root.appNameForWindow(win.appId, hyprWindow.title || win.title),
@@ -218,8 +262,19 @@ Item {
 
   function activate(index) {
     if (index < 0 || index >= windowModel.count) return
-    var win = windowModel.get(index).windowObject
+    var row = windowModel.get(index)
+    var win = row.windowObject
     dismiss()
+    if (row.appleMusic === true && row.hiddenWorkspace === true) {
+      // Use the exact same Service.openWindow() path as the plugin's
+      // right-click action. It re-reads the real window state and moves the
+      // existing window to the currently active workspace before focusing it.
+      var service = root.shell && typeof root.shell.serviceFor === "function"
+        ? root.shell.serviceFor(root.appleMusicPluginId) : null
+      if (service && typeof service.openWindow === "function") service.openWindow()
+      else Quickshell.execDetached(["omarchy-shell", root.appleMusicPluginId, "open"])
+      return
+    }
     if (win) win.activate()
   }
 

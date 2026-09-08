@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.leandro-3rne.window-switcher",
   "name": "Windows-style Alt-Tab",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "leandro-3rne",
   "license": "MIT",
   "homepage": "https://github.com/leandro-3rne/omarchy-window-switcher",
