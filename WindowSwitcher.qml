@@ -40,7 +40,9 @@ Item {
     if (workspace) {
       var name = String(workspace.name || "")
       if (workspace.id > 0) return String(workspace.id)
-      return name.replace(/^special:/, "") || "Special"
+      var specialName = name.replace(/^special:/, "")
+      if (specialName.toLowerCase() === "scratchpad") return "Scratchpad"
+      return specialName || "Special"
     }
     return "?"
   }
