@@ -268,13 +268,13 @@ Item {
     var win = row.windowObject
     dismiss()
     if (row.appleMusic === true && row.hiddenWorkspace === true) {
-      // Use the exact same Service.openWindow() path as the plugin's
-      // right-click action. It re-reads the real window state and moves the
-      // existing window to the currently active workspace before focusing it.
+      // Always reveal and focus Apple Music. Unlike the bar's toggle action,
+      // this also does the right thing for a window on a visible scratchpad:
+      // selecting it must not hide that scratchpad.
       var service = root.shell && typeof root.shell.serviceFor === "function"
         ? root.shell.serviceFor(root.appleMusicPluginId) : null
-      if (service && typeof service.openWindow === "function") service.openWindow()
-      else Quickshell.execDetached(["omarchy-shell", root.appleMusicPluginId, "open"])
+      if (service && typeof service.focusWindow === "function") service.focusWindow()
+      else Quickshell.execDetached(["omarchy-shell", root.appleMusicPluginId, "show"])
       return
     }
     if (win) win.activate()
