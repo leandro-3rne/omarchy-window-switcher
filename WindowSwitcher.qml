@@ -298,6 +298,18 @@ Item {
     return "ok"
   }
 
+  // The Apple Music controller needs to distinguish the persistent empty
+  // scratchpad hint from a normal Alt-Tab overlay. Keep that state available
+  // over the shell IPC boundary without exposing any window data.
+  function isScratchpadEmpty() {
+    return opened && messageMode ? "true" : "false"
+  }
+
+  function dismissScratchpadEmpty() {
+    if (opened && messageMode) dismiss()
+    return "ok"
+  }
+
   function moveOpenedWindowToScratchpad(rawAddress) {
     if (!opened || !messageMode) return
 
