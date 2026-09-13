@@ -119,6 +119,7 @@ Item {
       "proton vpn": "proton-vpn-logo",
       "proton-vpn": "proton-vpn-logo",
       "protonvpn-app": "proton-vpn-logo",
+      "proton.vpn.app.gtk": "proton-vpn-logo",
       "kitty": "kitty",
       "org.omarchy.agent": "kitty",
       "org.omarchy.terminal": "kitty",
@@ -173,7 +174,8 @@ Item {
       "proton-pass": "Proton Pass",
       "proton vpn": "Proton VPN",
       "proton-vpn": "Proton VPN",
-      "protonvpn-app": "Proton VPN"
+      "protonvpn-app": "Proton VPN",
+      "proton.vpn.app.gtk": "Proton VPN"
     }
     if (nativeNames[lower]) return nativeNames[lower]
     var domainNames = { "wheelmap.org": "Wheelmap", "www.wheelmap.org": "Wheelmap" }
