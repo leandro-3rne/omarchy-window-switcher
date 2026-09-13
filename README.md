@@ -82,6 +82,9 @@ hyprctl configerrors
   background click, or a workspace switch. It stays active while another menu
   such as the app launcher is open, so a window launched there moves into and
   reveals the scratchpad. There is no automatic timeout.
+- If the empty-scratchpad message is followed by Alt-Tab, selecting Apple Music
+  places it into that scratchpad instead of the workspace behind it. Selecting
+  any other-workspace window closes the visible scratchpad before switching.
 - Chromium web-app titles omit a trailing `- Web App` label.
 
 You can also summon it directly:

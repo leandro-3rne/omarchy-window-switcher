@@ -15,6 +15,10 @@ Item {
   property bool messageMode: false
   property string messageText: ""
   property int selectedIndex: 0
+  // Set only when Alt-Tab is entered from the empty Scratchpad surface. An
+  // Apple Music row selected from that overview must be placed in the
+  // Scratchpad, because the surface itself is not a Hyprland workspace.
+  property bool scratchpadTargetPending: false
   readonly property string pluginId: "io.github.leandro-3rne.window-switcher"
   readonly property string appleMusicPluginId: "io.github.leandro-3rne.apple-music"
   readonly property string iconDirectory: Quickshell.env("HOME") + "/.config/omarchy/plugins/" + pluginId + "/icons/"
@@ -82,6 +86,7 @@ Item {
       "www.icloud.com": "icloud.png",
       "music.apple.com": "apple-music.png",
       "www.netflix.com": "netflix.png",
+      "youtube.com": "youtube.svg",
       "github.com": "github.png",
       "www.linkedin.com": "linkedin.png"
     }
@@ -144,6 +149,7 @@ Item {
         "www.icloud.com": "iCloud",
         "music.apple.com": "Apple Music",
         "www.netflix.com": "Netflix",
+        "youtube.com": "YouTube",
         "github.com": "GitHub",
         "www.linkedin.com": "LinkedIn",
         "mail.google.com": "Gmail",
@@ -199,6 +205,7 @@ Item {
       var hiddenWorkspace = root.isHiddenWorkspace(workspace)
       rows.push({
         windowObject: win,
+        address: String(hyprWindow.address || win.address || ""),
         appleMusic: appleMusic,
         hiddenWorkspace: hiddenWorkspace,
         title: root.displayTitleForWindow(win.appId, hyprWindow.title || win.title || win.appId),
@@ -246,6 +253,7 @@ Item {
   }
 
   function open(payloadJson) {
+    scratchpadTargetPending = false
     var reverse = false
     try { reverse = Boolean(JSON.parse(payloadJson || "{}").reverse) } catch (e) {}
     messageMode = false
@@ -273,10 +281,12 @@ Item {
 
   function close() {
     opened = false
+    scratchpadTargetPending = false
   }
 
   function dismiss() {
     opened = false
+    scratchpadTargetPending = false
     if (shell && typeof shell.hide === "function")
       shell.hide((manifest && manifest.id) || root.pluginId)
   }
@@ -287,6 +297,7 @@ Item {
   }
 
   function showScratchpadEmpty() {
+    scratchpadTargetPending = false
     if (opened && messageMode) {
       dismiss()
       return "ok"
@@ -310,6 +321,42 @@ Item {
     return "ok"
   }
 
+  function moveWindowToScratchpad(win, rawAddress) {
+    var address = String(rawAddress || (win && win.address) || "")
+    if (address.indexOf("0x") !== 0) address = "0x" + address
+    if (!address.match(/^0x[0-9a-f]+$/i)) return false
+
+    var script = 'local w = hl.get_window("address:' + address + '"); '
+      + 'if w then '
+      + 'if w.group then hl.dispatch(hl.dsp.window.move({ window = w, out_of_group = true })) end; '
+      + 'hl.dispatch(hl.dsp.window.move({ window = w, workspace = "special:scratchpad", follow = true })); '
+      + 'hl.exec_scheduled_prop_refresh_immediately(); '
+      + 'hl.dispatch(hl.dsp.focus({ window = w })) '
+      + 'end'
+    Quickshell.execDetached(["hyprctl", "eval", script])
+    return true
+  }
+
+  function activateWindowOutsideScratchpad(win, rawAddress) {
+    var address = String(rawAddress || (win && win.address) || "")
+    if (address.indexOf("0x") !== 0) address = "0x" + address
+    var workspace = win && win.workspace ? String(win.workspace.name || "") : ""
+    if (workspace === "special:scratchpad" || !address.match(/^0x[0-9a-f]+$/i)) {
+      if (win) win.activate()
+      return
+    }
+
+    // Close the visible Scratchpad before focusing a window from another
+    // workspace. Doing both dispatches in one Hyprland eval avoids a race in
+    // which the target focus lands while the special workspace is still up.
+    var script = 'local w = hl.get_window("address:' + address + '"); '
+      + 'local special = hl.get_active_special_workspace(); '
+      + 'if special and special.name == "special:scratchpad" then '
+      + 'hl.dispatch(hl.dsp.workspace.toggle_special("scratchpad")) end; '
+      + 'if w then hl.dispatch(hl.dsp.focus({ window = w })) end'
+    Quickshell.execDetached(["hyprctl", "eval", script])
+  }
+
   function moveOpenedWindowToScratchpad(rawAddress) {
     if (!opened || !messageMode) return
 
@@ -328,8 +375,15 @@ Item {
 
   function cycle(direction) {
     var reverse = String(direction || "next") === "previous"
-    if (!opened) open(JSON.stringify({ reverse: reverse }))
-    else if (messageMode) open(JSON.stringify({ reverse: reverse }))
+    if (!opened) {
+      scratchpadTargetPending = false
+      open(JSON.stringify({ reverse: reverse }))
+    } else if (messageMode) {
+      open(JSON.stringify({ reverse: reverse }))
+      // open() resets the regular overview state; retain this one bit of
+      // context for the activation that follows from the empty hint.
+      scratchpadTargetPending = true
+    }
     else if (windowModel.count === 0) dismiss()
     else select(reverse ? -1 : 1)
     return "ok"
@@ -349,8 +403,11 @@ Item {
     }
     var row = windowModel.get(index)
     var win = row.windowObject
+    var targetScratchpad = root.scratchpadTargetPending
+    root.scratchpadTargetPending = false
     dismiss()
     if (row.appleMusic === true && row.hiddenWorkspace === true) {
+      if (targetScratchpad && root.moveWindowToScratchpad(win, row.address)) return
       // Always reveal and focus Apple Music. Unlike the bar's toggle action,
       // this also does the right thing for a window on a visible scratchpad:
       // selecting it must not hide that scratchpad.
@@ -360,7 +417,7 @@ Item {
       else Quickshell.execDetached(["omarchy-shell", root.appleMusicPluginId, "show"])
       return
     }
-    if (win) win.activate()
+    if (win) root.activateWindowOutsideScratchpad(win, row.address)
   }
 
   ListModel { id: windowModel }
@@ -513,6 +570,7 @@ Item {
               id: tile
               required property int index
               required property var windowObject
+              required property string address
               required property string title
               required property string appId
               required property string appName
