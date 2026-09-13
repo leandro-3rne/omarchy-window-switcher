@@ -79,7 +79,9 @@ hyprctl configerrors
 - Use the arrow keys or mouse when the overview is open.
 - Press Escape or click the dimmed background to cancel.
 - The empty-scratchpad message closes on Escape, another `Super+S`, a
-  background click, or its short timeout.
+  background click, or a workspace switch. It stays active while another menu
+  such as the app launcher is open, so a window launched there moves into and
+  reveals the scratchpad. There is no automatic timeout.
 - Chromium web-app titles omit a trailing `- Web App` label.
 
 You can also summon it directly:

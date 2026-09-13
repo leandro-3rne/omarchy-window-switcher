@@ -217,7 +217,6 @@ Item {
   function open(payloadJson) {
     var reverse = false
     try { reverse = Boolean(JSON.parse(payloadJson || "{}").reverse) } catch (e) {}
-    emptyMessageTimer.stop()
     messageMode = false
     messageText = ""
     rebuildModel()
@@ -242,12 +241,10 @@ Item {
   }
 
   function close() {
-    emptyMessageTimer.stop()
     opened = false
   }
 
   function dismiss() {
-    emptyMessageTimer.stop()
     opened = false
     if (shell && typeof shell.hide === "function")
       shell.hide((manifest && manifest.id) || root.pluginId)
@@ -266,9 +263,24 @@ Item {
     messageMode = true
     messageText = "Scratchpad is empty"
     opened = true
-    emptyMessageTimer.restart()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
     return "ok"
+  }
+
+  function moveOpenedWindowToScratchpad(rawAddress) {
+    if (!opened || !messageMode) return
+
+    var address = String(rawAddress || "")
+    if (address.indexOf("0x") !== 0) address = "0x" + address
+    if (!address.match(/^0x[0-9a-f]+$/i)) return
+
+    dismiss()
+    var script = 'local w = hl.get_window("address:' + address + '"); '
+      + 'if w then '
+      + 'hl.dispatch(hl.dsp.window.move({ window = w, out_of_group = true })); '
+      + 'hl.dispatch(hl.dsp.window.move({ window = w, workspace = "special:scratchpad", follow = true })) '
+      + 'end'
+    Quickshell.execDetached(["hyprctl", "eval", script])
   }
 
   function cycle(direction) {
@@ -310,16 +322,24 @@ Item {
 
   ListModel { id: windowModel }
 
-  Timer {
-    id: emptyMessageTimer
-    interval: 2200
-    repeat: false
-    onTriggered: root.dismiss()
-  }
-
   Connections {
     target: Hyprland.toplevels
     function onValuesChanged() { if (root.opened) root.rebuildModel() }
+  }
+
+  Connections {
+    target: Hyprland
+    function onRawEvent(event) {
+      if (!root.opened || !root.messageMode) return
+
+      var name = String(event.name || "")
+      if (name === "openwindow") {
+        var fields = event.parse(4)
+        root.moveOpenedWindowToScratchpad(fields.length > 0 ? fields[0] : "")
+      } else if (name === "workspace" || name === "activespecial") {
+        root.dismiss()
+      }
+    }
   }
 
   PanelWindow {
