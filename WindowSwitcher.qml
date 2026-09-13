@@ -23,6 +23,7 @@ Item {
   readonly property string appleMusicPluginId: "io.github.leandro-3rne.apple-music"
   readonly property string iconDirectory: Quickshell.env("HOME") + "/.config/omarchy/plugins/" + pluginId + "/icons/"
   readonly property string appIconDirectory: Quickshell.env("HOME") + "/.local/share/icons/hicolor/scalable/apps/"
+  readonly property string launcherIconDirectory: Quickshell.env("HOME") + "/.local/share/icons/hicolor/256x256/apps/"
 
   // Match Omarchy's weather/audio/etc. popout surfaces. Selection colors
   // still come from the menu tokens used by keyboard-driven lists.
@@ -76,6 +77,10 @@ Item {
     if (!match) return ""
 
     var host = match[1]
+    // GitHub's web-app entry is also present in the Apps menu. Reuse that
+    // installed icon so both launch surfaces stay visually identical.
+    if (host === "github.com") return root.launcherIconDirectory + "github.png"
+
     var localIcons = {
       "discord.com": "discord.png",
       "mail.proton.me": "proton-mail",
@@ -87,7 +92,6 @@ Item {
       "music.apple.com": "apple-music.png",
       "www.netflix.com": "netflix.png",
       "youtube.com": "youtube.svg",
-      "github.com": "github.png",
       "www.linkedin.com": "linkedin.png"
     }
     if (localIcons[host]) {

@@ -12,8 +12,8 @@ Windows Alt-Tab switcher and built directly for the Omarchy Quattro shell.
 - Cycles while Alt is held and activates on Alt release.
 - Supports arrow keys, `Shift+Tab`, Enter, Space, Escape, and the mouse.
 - Uses Omarchy's current popup and menu colors automatically.
-- Resolves icons through the desktop entry database and bundled local web-app
-  icons without making network requests.
+- Resolves icons through the desktop entry database and local web-app icons
+  without making network requests; GitHub reuses the icon from the Apps menu.
 
 ## Requirements
 
@@ -97,7 +97,8 @@ omarchy-shell shell summon io.github.leandro-3rne.window-switcher '{}'
 
 Chromium web apps do not always expose a desktop icon that matches their
 window class. Known apps use bundled local icons or installed icon-theme
-entries; unknown apps fall back to their desktop entry icon.
+entries; GitHub deliberately reuses the icon from its Apps-menu launcher, and
+unknown apps fall back to their desktop entry icon.
 
 The switcher never derives a URL from a client's app ID and never performs
 network requests. This keeps forged Wayland client metadata from turning the
