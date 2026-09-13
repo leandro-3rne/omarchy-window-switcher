@@ -12,6 +12,8 @@ Item {
   property var shell: null
   property var manifest: null
   property bool opened: false
+  property bool messageMode: false
+  property string messageText: ""
   property int selectedIndex: 0
   readonly property string pluginId: "io.github.leandro-3rne.window-switcher"
   readonly property string appleMusicPluginId: "io.github.leandro-3rne.apple-music"
@@ -215,6 +217,9 @@ Item {
   function open(payloadJson) {
     var reverse = false
     try { reverse = Boolean(JSON.parse(payloadJson || "{}").reverse) } catch (e) {}
+    emptyMessageTimer.stop()
+    messageMode = false
+    messageText = ""
     rebuildModel()
     var activeIndex = -1
     for (var i = 0; i < windowModel.count; i++) {
@@ -237,10 +242,12 @@ Item {
   }
 
   function close() {
+    emptyMessageTimer.stop()
     opened = false
   }
 
   function dismiss() {
+    emptyMessageTimer.stop()
     opened = false
     if (shell && typeof shell.hide === "function")
       shell.hide((manifest && manifest.id) || root.pluginId)
@@ -249,6 +256,14 @@ Item {
   function toggle(payloadJson) {
     if (opened) dismiss()
     else open(payloadJson || "{}")
+  }
+
+  function showScratchpadEmpty() {
+    messageMode = true
+    messageText = "Scratchpad is empty"
+    opened = true
+    emptyMessageTimer.restart()
+    return "ok"
   }
 
   function cycle(direction) {
@@ -284,6 +299,13 @@ Item {
 
   ListModel { id: windowModel }
 
+  Timer {
+    id: emptyMessageTimer
+    interval: 2200
+    repeat: false
+    onTriggered: root.dismiss()
+  }
+
   Connections {
     target: Hyprland.toplevels
     function onValuesChanged() { if (root.opened) root.rebuildModel() }
@@ -297,7 +319,7 @@ Item {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "omarchy-window-switcher"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: root.opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: root.opened && !root.messageMode ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     Rectangle { anchors.fill: parent; color: root.scrim }
     MouseArea { anchors.fill: parent; onClicked: root.dismiss() }
@@ -305,8 +327,12 @@ Item {
     BorderSurface {
       id: surface
       anchors.centerIn: parent
-      width: Math.min(panel.width - Style.gapsOut * 2, root.columnCount * root.tileWidth + (root.columnCount - 1) * root.cardGap + root.contentMargin * 2 + borderLeft + borderRight)
-      height: Math.min(panel.height - Style.gapsOut * 2, root.rowCount * root.tileHeight + (root.rowCount - 1) * root.cardGap + root.headerHeight + root.cardGap + root.contentMargin * 2 + borderTop + borderBottom)
+      width: root.messageMode
+        ? Math.min(panel.width - Style.gapsOut * 2, Style.space(280) + root.contentMargin * 2 + borderLeft + borderRight)
+        : Math.min(panel.width - Style.gapsOut * 2, root.columnCount * root.tileWidth + (root.columnCount - 1) * root.cardGap + root.contentMargin * 2 + borderLeft + borderRight)
+      height: root.messageMode
+        ? Style.space(64) + root.contentMargin * 2 + borderTop + borderBottom
+        : Math.min(panel.height - Style.gapsOut * 2, root.rowCount * root.tileHeight + (root.rowCount - 1) * root.cardGap + root.headerHeight + root.cardGap + root.contentMargin * 2 + borderTop + borderBottom)
       radius: Style.cornerRadius
       color: root.background
       borderSpec: root.borderSpec
@@ -348,6 +374,7 @@ Item {
         }
 
         Column {
+          visible: !root.messageMode
           anchors.fill: parent
           anchors.topMargin: surface.contentTopInset
           anchors.rightMargin: surface.contentRightInset
@@ -494,6 +521,15 @@ Item {
               font.pixelSize: Style.font.body
             }
           }
+        }
+
+        Text {
+          anchors.centerIn: parent
+          visible: root.messageMode
+          text: root.messageText
+          color: root.foreground
+          font.family: Style.font.menuFamily
+          font.pixelSize: Style.font.body
         }
       }
     }

@@ -46,6 +46,23 @@ o.bind(
 )
 ```
 
+Optionally reuse the same surface as a short empty-scratchpad message:
+
+```lua
+hl.unbind("SUPER + S")
+o.bind("SUPER + S", "Toggle scratchpad", function()
+    for _, window in pairs(hl.get_windows()) do
+        if window.workspace and window.workspace.name == "special:scratchpad" then
+            hl.dispatch(hl.dsp.workspace.toggle_special("scratchpad"))
+            return
+        end
+    end
+    hl.dispatch(hl.dsp.exec_cmd(
+        "omarchy-shell shell call io.github.leandro-3rne.window-switcher showScratchpadEmpty '{}'"
+    ))
+end)
+```
+
 Hyprland reloads the file automatically. Check the result with:
 
 ```sh
