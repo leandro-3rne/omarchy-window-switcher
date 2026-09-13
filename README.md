@@ -74,8 +74,12 @@ hyprctl configerrors
 - Hold Alt and tap Tab to move forward.
 - Hold Alt and press Shift+Tab to move backward.
 - Release Alt, or press Enter/Space, to activate the selected window.
+- With no windows open, release Alt, press Escape, or repeat either overview
+  shortcut to close the empty state.
 - Use the arrow keys or mouse when the overview is open.
 - Press Escape or click the dimmed background to cancel.
+- The empty-scratchpad message closes on Escape, another `Super+S`, a
+  background click, or its short timeout.
 - Chromium web-app titles omit a trailing `- Web App` label.
 
 You can also summon it directly:

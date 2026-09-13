@@ -259,16 +259,23 @@ Item {
   }
 
   function showScratchpadEmpty() {
+    if (opened && messageMode) {
+      dismiss()
+      return "ok"
+    }
     messageMode = true
     messageText = "Scratchpad is empty"
     opened = true
     emptyMessageTimer.restart()
+    Qt.callLater(function() { keyCatcher.forceActiveFocus() })
     return "ok"
   }
 
   function cycle(direction) {
     var reverse = String(direction || "next") === "previous"
     if (!opened) open(JSON.stringify({ reverse: reverse }))
+    else if (messageMode) open(JSON.stringify({ reverse: reverse }))
+    else if (windowModel.count === 0) dismiss()
     else select(reverse ? -1 : 1)
     return "ok"
   }
@@ -280,7 +287,11 @@ Item {
   }
 
   function activate(index) {
-    if (index < 0 || index >= windowModel.count) return
+    if (messageMode) return
+    if (index < 0 || index >= windowModel.count) {
+      dismiss()
+      return
+    }
     var row = windowModel.get(index)
     var win = row.windowObject
     dismiss()
@@ -319,7 +330,7 @@ Item {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "omarchy-window-switcher"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: root.opened && !root.messageMode ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: root.opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     Rectangle { anchors.fill: parent; color: root.scrim }
     MouseArea { anchors.fill: parent; onClicked: root.dismiss() }
@@ -347,7 +358,7 @@ Item {
 
         Keys.priority: Keys.BeforeItem
         Keys.onReleased: function(event) {
-          if (event.key === Qt.Key_Alt || event.key === Qt.Key_AltGr) {
+          if (!root.messageMode && (event.key === Qt.Key_Alt || event.key === Qt.Key_AltGr)) {
             root.activate(root.selectedIndex)
             event.accepted = true
           }
@@ -355,6 +366,8 @@ Item {
         Keys.onPressed: function(event) {
           if (event.key === Qt.Key_Escape) {
             root.dismiss()
+          } else if (root.messageMode) {
+            return
           } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
             root.activate(root.selectedIndex)
           } else if (event.key === Qt.Key_Tab) {
