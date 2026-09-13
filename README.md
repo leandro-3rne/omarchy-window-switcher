@@ -59,6 +59,7 @@ hyprctl configerrors
 - Release Alt, or press Enter/Space, to activate the selected window.
 - Use the arrow keys or mouse when the overview is open.
 - Press Escape or click the dimmed background to cancel.
+- Chromium web-app titles omit a trailing `- Web App` label.
 
 You can also summon it directly:
 

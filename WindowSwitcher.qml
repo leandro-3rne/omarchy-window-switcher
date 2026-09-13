@@ -165,6 +165,8 @@ Item {
     var id = String(appId || "").toLowerCase()
     var value = String(title || "")
     if (id.indexOf("music.apple.com") !== -1) return "Apple Music"
+    if (id.match(/^chrome-.+__.*-default$/))
+      value = value.replace(/\s+[—–-]\s+Web App$/i, "")
     if (id === "chatgpt") {
       var cleaned = value.replace(/\s+[—–-]\s+ChatGPT$/i, "")
       return cleaned && cleaned.toLowerCase() !== "chatgpt" ? cleaned : "ChatGPT"
