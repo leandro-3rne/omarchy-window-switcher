@@ -109,9 +109,18 @@ Item {
       "proton-pass": "proton-pass",
       "proton vpn": "proton-vpn-logo",
       "proton-vpn": "proton-vpn-logo",
-      "protonvpn-app": "proton-vpn-logo"
+      "protonvpn-app": "proton-vpn-logo",
+      "kitty": "kitty",
+      "org.omarchy.agent": "kitty",
+      "org.omarchy.terminal": "kitty",
+      "foot": "foot",
+      "alacritty": "Alacritty"
     }
-    if (localIcons[id]) return root.appIconDirectory + localIcons[id] + ".svg"
+    if (localIcons[id]) {
+      if (id.indexOf("proton") === 0)
+        return root.appIconDirectory + localIcons[id] + ".svg"
+      return Quickshell.iconPath(localIcons[id])
+    }
 
     var entry = DesktopEntries.heuristicLookup(appId)
     return entry
@@ -212,6 +221,28 @@ Item {
     }
     if (windowModel.count === 0) selectedIndex = 0
     else selectedIndex = Math.max(0, Math.min(selectedIndex, windowModel.count - 1))
+  }
+
+  // Toplevel titles change without changing the Hyprland toplevel list. Keep
+  // the overview's copied model rows in sync so terminal progress spinners and
+  // other live titles visibly advance while Alt-Tab is held.
+  function refreshWindowTitles() {
+    if (!root.opened || root.messageMode) return
+    var toplevels = Hyprland.toplevels.values
+    for (var i = 0; i < windowModel.count; i++) {
+      var row = windowModel.get(i)
+      var win = row.windowObject
+      if (!win) continue
+      var sourceTitle = win.title || row.title || row.appId
+      for (var j = 0; j < toplevels.length; j++) {
+        if (toplevels[j] && toplevels[j].wayland === win) {
+          sourceTitle = toplevels[j].title || sourceTitle
+          break
+        }
+      }
+      var title = root.displayTitleForWindow(row.appId, sourceTitle)
+      if (title !== row.title) windowModel.setProperty(i, "title", title)
+    }
   }
 
   function open(payloadJson) {
@@ -340,6 +371,14 @@ Item {
         root.dismiss()
       }
     }
+  }
+
+  Timer {
+    id: titleRefreshTimer
+    interval: 100
+    repeat: true
+    running: root.opened && !root.messageMode
+    onTriggered: root.refreshWindowTitles()
   }
 
   PanelWindow {
