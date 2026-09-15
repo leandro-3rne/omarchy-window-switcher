@@ -174,6 +174,7 @@ Item {
       return known[chromium[1]] || host.split(".")[0]
     }
     var nativeNames = {
+      "org.omarchy.agent": "Codex",
       "proton mail": "Proton Mail",
       "proton-mail": "Proton Mail",
       "proton pass": "Proton Pass",
