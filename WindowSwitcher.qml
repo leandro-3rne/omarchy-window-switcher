@@ -77,9 +77,14 @@ Item {
     if (!match) return ""
 
     var host = match[1]
-    // GitHub's web-app entry is also present in the Apps menu. Reuse that
-    // installed icon so both launch surfaces stay visually identical.
-    if (host === "github.com") return root.launcherIconDirectory + "github.png"
+    // Reuse these installed launcher icons so the Apps menu and Window-Switcher
+    // stay visually consistent.
+    var launcherIcons = {
+      "github.com": "github.png",
+      "web.goodnotes.com": "goodnotes.png"
+    }
+    if (launcherIcons[host])
+      return root.launcherIconDirectory + launcherIcons[host]
 
     var localIcons = {
       "discord.com": "discord.png",
@@ -153,6 +158,7 @@ Item {
         "onedrive.live.com": "OneDrive",
         "www.icloud.com": "iCloud",
         "music.apple.com": "Apple Music",
+        "web.goodnotes.com": "Goodnotes",
         "www.netflix.com": "Netflix",
         "youtube.com": "YouTube",
         "github.com": "GitHub",
